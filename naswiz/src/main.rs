@@ -58,7 +58,7 @@ fn main() {
 
 // INFO: passed
 fn check_ip(nas: &NAS) -> Result<bool, &str> {
-    let re = Regex::new(r"(\b25[0-5]|\b2[0-4][0-9]|\b[01]?[0-9][0-9]?)(\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)){3}")
+    let re = Regex::new(r"^((25[0-5]|2[0-4][0-9]|1[0-9][0-9]|[1-9]?[0-9])\.){3}(25[0-5]|2[0-4][0-9]|1[0-9][0-9]|[1-9]?[0-9])$")
         .unwrap();
     match re.is_match(&nas.ip) {
         true => Ok(true),
@@ -71,7 +71,7 @@ fn what_replace(mountpoint: String, new_ip: String) -> String {
     // let mut left_find = String::new();
     let mut result = String::new();
 
-    let fs_regex = Regex::new(r"(What\s*=\s*//)((\b25[0-5]|\b2[0-4][0-9]|\b[01]?[0-9][0-9]?)(\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)){3})").unwrap();
+    let fs_regex = Regex::new(r"(What\s*=\s*//)(((25[0-5]|2[0-4][0-9]|1[0-9][0-9]|[1-9]?[0-9])\.){3}(25[0-5]|2[0-4][0-9]|1[0-9][0-9]|[1-9]?[0-9]))").unwrap();
     for line in content.lines() {
         if fs_regex.is_match(line) {
             // NOTE: debug
