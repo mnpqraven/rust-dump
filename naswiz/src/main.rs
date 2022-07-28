@@ -1,12 +1,12 @@
 use clap::{App, Arg};
 use regex::Regex;
 use std::{
+    fmt::Error,
     fs::{self, File},
     io::Write,
     process::{Command, Stdio},
 };
 
-// TODO: should this has a mountpoint field ?
 struct NAS {
     _host: String,
     ip: String,
@@ -21,20 +21,23 @@ impl NAS {
         }
     }
 }
-fn main() {
+
+// TODO: unable to find the ip in the file should return error or smth
+fn main() -> Result<(), Error> {
     let host = "othiremote.synology.me";
     // hardcode for now
     let mountpoint = "/etc/systemd/system/media-nasremote-music.mount";
 
     // NOTE: meta
     let app = App::new("naswiz")
-        .version("0.1.0")
+        .version("0.1.1")
         .author("othi")
         .about("nas mountpoint update wizard")
         .arg(
             Arg::new("ip")
                 .help("nas' public ip address")
-                .value_parser(clap::builder::NonEmptyStringValueParser::new()),
+                .value_parser(clap::builder::NonEmptyStringValueParser::new())
+                .required(true),
         )
         .get_matches();
 
@@ -51,23 +54,16 @@ fn main() {
                 let dump = what_replace(mountpoint.to_string(), nas.ip).to_string();
                 file_inject(dump).expect("can't write to file");
 
-                println!("enter sudo pw");
-                std::io::stdout().flush().unwrap();
-                // NOTE: copy from tmp to systemd dir
-                let _child = Command::new("sudo")
-                    .arg("cp")
-                    .arg("/tmp/media-nasremote-music.mount")
-                    .arg("/etc/systemd/system")
-                    .stdin(Stdio::inherit())
-                    .output() // NOTE: importand for catching stdin
-                    .expect("failed reverse command");
+                // should eventually pass paths and file name as args
+                copy_to_systemd();
             }
             Err(_) => panic!("not a valid ip address"),
         }
     }
+    Ok(())
 }
 
-// INFO: should be passed
+// INFO: should be passing
 fn check_ip(nas: &NAS) -> Result<bool, &str> {
     let re = Regex::new(r"^((25[0-5]|2[0-4][0-9]|1[0-9][0-9]|[1-9]?[0-9])\.){3}(25[0-5]|2[0-4][0-9]|1[0-9][0-9]|[1-9]?[0-9])$")
         .unwrap();
@@ -109,6 +105,19 @@ fn file_inject(replace_with: String) -> Result<(), &'static str> {
     Ok(())
 }
 
+fn copy_to_systemd() {
+    println!("enter sudo pw");
+    std::io::stdout().flush().unwrap();
+    // NOTE: copy from tmp to systemd dir
+    let _child = Command::new("sudo")
+        .arg("cp")
+        .arg("/tmp/media-nasremote-music.mount")
+        .arg("/etc/systemd/system")
+        .stdin(Stdio::inherit())
+        .output() // NOTE: importand for catching stdin
+        .expect("failed to run copy command");
+}
+
 // TODO: implement host's ip autolookup, for now just pass the new IP as args
 fn _lookup(_ip: String) -> String {
     unimplemented!();
@@ -139,7 +148,7 @@ mod tests {
         }
     }
     #[test]
-    #[should_panic(expected = "invalid ip addr")]
+    #[should_panic]
     fn check_ip_fail() {
         let bad_ips = [
             "278.12.23.2",
@@ -155,7 +164,8 @@ mod tests {
                 ip.to_string(),
                 File::open(path).expect("can't open file"),
             );
-            assert_eq!(check_ip(&nas).unwrap(), false);
+            println!("testing {}", ip);
+            assert!(check_ip(&nas).is_err());
         }
     }
     // TODO: refactor to unit test
