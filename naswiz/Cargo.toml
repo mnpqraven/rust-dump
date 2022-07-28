@@ -8,3 +8,4 @@ edition = "2021"
 [dependencies]
 clap = "3.2.15"
 regex = "1.6.0"
+rpassword = "7.0.0"

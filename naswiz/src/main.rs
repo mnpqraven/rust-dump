@@ -3,6 +3,7 @@ use regex::Regex;
 use std::{
     fs::{self, File},
     io::Write,
+    process::{Command, Stdio},
 };
 
 // TODO: should this has a mountpoint field ?
@@ -47,16 +48,26 @@ fn main() {
         match check_ip(&nas) {
             Ok(_) => {
                 println!("{} is a valid ip address, continuing ...", &nas.ip);
-                let debug = what_replace(mountpoint.to_string(), nas.ip).to_string();
-                println!("{}", debug);
-                file_inject(debug).expect("can't write to file");
+                let dump = what_replace(mountpoint.to_string(), nas.ip).to_string();
+                file_inject(dump).expect("can't write to file");
+
+                println!("enter sudo pw");
+                std::io::stdout().flush().unwrap();
+                // NOTE: copy from tmp to systemd dir
+                let _child = Command::new("sudo")
+                    .arg("cp")
+                    .arg("/tmp/media-nasremote-music.mount")
+                    .arg("/etc/systemd/system")
+                    .stdin(Stdio::inherit())
+                    .output() // NOTE: importand for catching stdin
+                    .expect("failed reverse command");
             }
             Err(_) => panic!("not a valid ip address"),
         }
     }
 }
 
-// INFO: passed
+// INFO: should be passed
 fn check_ip(nas: &NAS) -> Result<bool, &str> {
     let re = Regex::new(r"^((25[0-5]|2[0-4][0-9]|1[0-9][0-9]|[1-9]?[0-9])\.){3}(25[0-5]|2[0-4][0-9]|1[0-9][0-9]|[1-9]?[0-9])$")
         .unwrap();
@@ -79,7 +90,6 @@ fn what_replace(mountpoint: String, new_ip: String) -> String {
 
             // left_find = line.clone().to_string();
             let caps = fs_regex.captures(line).unwrap();
-            assert_eq!(caps.get(2).unwrap().as_str(), "42.115.6.173");
             result.push_str(&line.clone().replace(caps.get(2).unwrap().as_str(), &new_ip));
             // println!("new replaced output: {}", result);
         } else {
