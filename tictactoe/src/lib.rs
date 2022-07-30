@@ -1,7 +1,14 @@
-pub fn add(left: usize, right: usize) -> usize {
-    left + right
+struct Box {
+    x: usize,
+    y: usize,
+    state: STATE
 }
 
+enum STATE {
+    player1,
+    player2,
+    free // default
+}
 /// a size of 3 should draw this
 /// +---+---+---+
 /// |   |   |   |
@@ -78,5 +85,14 @@ mod tests {
     #[test]
     fn draw() {
         draw_board(6).expect("can't draw the board");
+    }
+
+    fn state() {
+        let turn1 = Box{
+            x: 1,
+            y: 2,
+            state: STATE::player1
+        };
+
     }
 }
