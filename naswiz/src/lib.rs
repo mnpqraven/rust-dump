@@ -22,9 +22,13 @@ impl NAS {
     }
 }
 
+static IP_RE: &'static str = r"^((25[0-5]|2[0-4][0-9]|1[0-9][0-9]|[1-9]?[0-9])\.){3}(25[0-5]|2[0-4][0-9]|1[0-9][0-9]|[1-9]?[0-9])$";
+static WHAT_RE: &'static str =r"(What\s*=\s*//)(((25[0-5]|2[0-4][0-9]|1[0-9][0-9]|[1-9]?[0-9])\.){3}(25[0-5]|2[0-4][0-9]|1[0-9][0-9]|[1-9]?[0-9]))";
+static NAME_RE: &'static str = r"^(.*)/([a-zA-Z-]*.mount)$";
+
 // INFO: should be passed
 pub fn check_ip(nas: &NAS) -> Result<bool, &str> {
-    let re = Regex::new(r"^((25[0-5]|2[0-4][0-9]|1[0-9][0-9]|[1-9]?[0-9])\.){3}(25[0-5]|2[0-4][0-9]|1[0-9][0-9]|[1-9]?[0-9])$")
+    let re = Regex::new(IP_RE)
         .unwrap();
     match re.is_match(&nas.ip) {
         true => Ok(true),
@@ -33,19 +37,13 @@ pub fn check_ip(nas: &NAS) -> Result<bool, &str> {
 }
 pub fn what_replace(mountpoint: String, new_ip: String) -> String {
     let content = String::from(fs::read_to_string(mountpoint).unwrap());
-    // let mut left_find = String::new();
     let mut result = String::new();
 
-    let fs_regex = Regex::new(r"(What\s*=\s*//)(((25[0-5]|2[0-4][0-9]|1[0-9][0-9]|[1-9]?[0-9])\.){3}(25[0-5]|2[0-4][0-9]|1[0-9][0-9]|[1-9]?[0-9]))").unwrap();
+    let what_re = Regex::new(WHAT_RE).unwrap();
     for line in content.lines() {
-        if fs_regex.is_match(line) {
-            // NOTE: debug
-            // println!("found What line {}", line);
-
-            // left_find = line.clone().to_string();
-            let caps = fs_regex.captures(line).unwrap();
+        if what_re.is_match(line) {
+            let caps = what_re.captures(line).unwrap();
             result.push_str(&line.clone().replace(caps.get(2).unwrap().as_str(), &new_ip));
-            // println!("new replaced output: {}", result);
         } else {
             result.push_str(line);
         }
@@ -58,17 +56,24 @@ pub fn file_inject(replace_with: String) -> Result<(), &'static str> {
         File::create("/tmp/media-nasremote-music.mount").expect("can't create a new file");
     file.write_all(replace_with.as_bytes())
         .expect("can't write to file");
-    println!("file created, for now do\nsudo cp /tmp/media-nasremote-music.mount /etc/systemd/system/media-nasremote-music.mount");
+    println!("copying with sudo cp /tmp/media-nasremote-music.mount /etc/systemd/system/media-nasremote-music.mount");
     Ok(())
 }
+
+#[allow(dead_code)]
 struct MOUNT {
     path: String,
-    filename: String
+    filename: String,
 }
+#[allow(dead_code)]
 impl MOUNT {
     pub fn new(fullpath: String) -> Self {
         // INFO: fullpath example: "/etc/systemd/system/media-nasremote-music.mount"
-        let name_regex = Regex::new(r"^(.*)\/([a-zA-Z-]*.mount)$").unwrap();
+        // extra `-` charcter for systemd's dir traversing naming scheme
+        // cap group 0: fullpath
+        // cap group 1: dir (/etc/systemd/system)
+        // cap group 2: filename (media-nasremote-music.mount)
+        let name_regex = Regex::new(NAME_RE).unwrap();
         let captures = name_regex.captures(&fullpath).unwrap();
         let path = captures.get(1).map_or("", |m| m.as_str());
         let filename = captures.get(2).map_or("", |m| m.as_str());
@@ -80,10 +85,6 @@ impl MOUNT {
 }
 // TODO: implement multiple args/file's existence, for now just media-nasremote-music.mount
 fn _lookup_filename(path: String) -> Result<(), &'static str> {
-    //extra - charcter for systemd's dir traversing naming scheme
-    // cap group 0: fullpath
-    // cap group 1: dir (/etc/systemd/system)
-    // cap group 2: filename (media-nasremote-music.mount)
     match fs::read_dir(path) {
         Ok(_) => todo!(),
         Err(_) => todo!(),
@@ -94,8 +95,14 @@ fn regex() {
     let mountpoint = "/etc/systemd/system/media-nasremote-music.mount";
     let name_regex = Regex::new(r"^(.*)/([a-zA-Z-]*.mount)$").unwrap();
     let captures = name_regex.captures(mountpoint).unwrap();
-    assert_eq!(captures.get(1).map_or("", |m| m.as_str()), "/etc/systemd/system");
-    assert_eq!(captures.get(2).map_or("", |m| m.as_str()), "media-nasremote-music.mount");
+    assert_eq!(
+        captures.get(1).map_or("", |m| m.as_str()),
+        "/etc/systemd/system"
+    );
+    assert_eq!(
+        captures.get(2).map_or("", |m| m.as_str()),
+        "media-nasremote-music.mount"
+    );
 }
 
 // TODO: implement host's ip autolookup, for now just pass the new IP as args
