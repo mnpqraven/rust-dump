@@ -1,18 +1,45 @@
-use apiutils::{auth, markerss};
-// use apiutils::auth;
+use crate::util::auth::auth;
+use apiutils::{groups, markerss, permission_patch, wipe_token};
 use clap::Parser;
+mod util;
+mod obj;
 
-#[derive(Parser, Debug)]
+#[derive(clap::Parser)]
 #[clap(author, version, long_about = None)]
-#[clap(about = "api data fetcher and eventually data manipulation tool")]
 struct Args {
-    /// Number of times to greet
-    #[clap(short, long, value_parser, default_value_t = 1)]
-    count: u8,
+    /// Number of maximum items being displayed
+    #[clap(short, long, value_parser, default_value_t = 25)]
+    limit: u16,
 
-    /// API endpoints, currently 'auth', 'nakedauth' and 'markerss' are available
-    #[clap(short, long, value_parser)]
-    prop: String,
+    /// id of the item you're working with
+    #[clap(long, value_parser)]
+    id: Option<String>,
+
+    /// id of the item you're working with
+    #[clap(long, value_parser)]
+    id2: Option<String>,
+
+    /// API endpoints
+    #[clap(short, long, value_enum)]
+    endpoint: Endpoint,
+
+    // TODO: option to save as csv
+    #[clap(subcommand)]
+    subcommand: Option<SubCommand>,
+}
+
+#[derive(clap::ValueEnum, Clone)]
+enum Endpoint {
+    Auth,
+    PermissionPatch,
+    Markerss,
+    Groups,
+}
+
+#[derive(clap::Subcommand)]
+enum SubCommand {
+    Show,
+    CSV,
 }
 
 #[tokio::main]
@@ -22,25 +49,40 @@ async fn main() -> Result<(), reqwest::Error> {
 
     // INFO: CLI with Clap
     let args = Args::parse();
-
-    // TODO: enumerate ?
-    println!("{}", args.count);
-
-    if args.prop == "markerss" {
-        markerss()
-            .await
-            .expect("error getting markerss, check lib.rs");
+    // TODO: save to csv
+    match args.subcommand {
+        Some(SubCommand::CSV) => todo!(),
+        _ => {}
     }
 
-    // TODO: cleaner
-    if args.prop == "auth" {
-        auth().await.expect("authentication error");
-        println!("authentication completed, generated token");
+    match args.endpoint {
+        Endpoint::Auth => match args.subcommand {
+            Some(SubCommand::Show) => {
+                let naked_token = auth().await.expect("authentication error");
+                println!("{}", naked_token);
+            }
+            _ => {
+                auth().await.expect("authentication error");
+                println!("authentication completed, generated token");
+            }
+        },
+        Endpoint::PermissionPatch => {
+            permission_patch(args.id.unwrap())
+                .await
+                .expect("error getting markerss, check lib.rs");
+        }
+        Endpoint::Markerss => {
+            markerss(args.limit)
+                .await
+                .expect("error getting markerss, check lib.rs");
+        }
+        Endpoint::Groups => {
+            groups(args.limit)
+                .await
+                .expect("error getting groups, check lib.rs");
+        }
     }
-    if args.prop == "nakedauth" {
-        let naked_token = auth().await.expect("authentication error");
-        println!("{}", naked_token);
-    }
+    wipe_token().expect("can't delete token file");
 
     Ok(())
 }
