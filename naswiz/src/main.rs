@@ -14,8 +14,8 @@ fn main() -> Result<(), &'static str> {
     let mountpoint = "/etc/systemd/system/media-nasremote-music.mount";
 
     // NOTE: meta
-    let _app = App::new("naswiz")
-        .about("nas mountpoint update wizard")
+    let app = App::new("naswiz")
+        .about("Synology NAS mountpoint update wizard\nThis program fetches your public url domain and updates the mountpoint in systemd")
         .arg(
             Arg::new("ip")
                 .help("nas' public ip address")
@@ -25,7 +25,7 @@ fn main() -> Result<(), &'static str> {
 
     // NOTE: RUNTIME
     let nas: NAS;
-    match _app.value_of("ip") {
+    match app.value_of("ip") {
         Some(ip) => {
             nas = NAS::new(
                 host.to_string(),

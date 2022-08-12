@@ -6,8 +6,6 @@ use dns_lookup::lookup_host;
 
 use regex::Regex;
 
-// TODO: LISTS
-// TODO: should struct NAS has a mountpoint field ?
 // TODO: existence of mountpoint should be checked
 // TODO: hostname should also be checked in the mountpoint
 pub struct NAS {
