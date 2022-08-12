@@ -6,8 +6,6 @@ use dns_lookup::lookup_host;
 
 use regex::Regex;
 
-// TODO: existence of mountpoint should be checked
-// TODO: hostname should also be checked in the mountpoint
 pub struct NAS {
     _host: String,
     pub ip: net::IpAddr,
@@ -36,10 +34,10 @@ pub fn check_ip(nas: &NAS) -> Result<bool, &str> {
     }
 }
 /// replaces the mountpoint file, changing the ip address in the what field
-/// Returns String of modified mountpoint file
+///
 /// * `mountpoint`: path of the mountpoint file
 /// * `new_ip`: ip to replace
-pub fn what_replace(mountpoint: String, new_ip: IpAddr) -> String {
+pub fn gen_new_file(mountpoint: String, new_ip: IpAddr) -> Result<(), &'static str> {
     let content = String::from(fs::read_to_string(mountpoint).unwrap());
     let mut result = String::new();
 
@@ -53,15 +51,13 @@ pub fn what_replace(mountpoint: String, new_ip: IpAddr) -> String {
         }
         result.push('\n');
     }
-    result
-}
-
-pub fn file_inject(replace_with: String) -> Result<(), &'static str> {
     let mut file =
         File::create("/tmp/media-nasremote-music.mount").expect("can't create a new file");
-    file.write_all(replace_with.as_bytes())
+    file.write_all(result.as_bytes())
         .expect("can't write to file");
     println!("copying with sudo cp /tmp/media-nasremote-music.mount /etc/systemd/system/media-nasremote-music.mount");
+
+    copy_to_systemd();
     Ok(())
 }
 
@@ -88,8 +84,16 @@ impl MOUNT {
         }
     }
 }
+
+// TODO: implement multiple args/file's existence, for now just media-nasremote-music.mount
+fn _lookup_filename(path: String) -> Result<(), &'static str> {
+    match fs::read_dir(path) {
+        Ok(_) => todo!(),
+        Err(_) => todo!(),
+    }
+}
 /// Copy the mountpoint file generated in /tmp to systemd dir
-pub fn copy_to_systemd() {
+fn copy_to_systemd() {
     std::io::stdout().flush().unwrap();
     // NOTE: copy from tmp to systemd dir
     let _child = Command::new("sudo")
@@ -100,19 +104,12 @@ pub fn copy_to_systemd() {
         .output() // NOTE: importand for catching stdin
         .expect("failed to run copy command");
 }
-// TODO: implement multiple args/file's existence, for now just media-nasremote-music.mount
-fn _lookup_filename(path: String) -> Result<(), &'static str> {
-    match fs::read_dir(path) {
-        Ok(_) => todo!(),
-        Err(_) => todo!(),
-    }
-}
 
 /// get the domain's public IPv4 address
 ///
 /// * `domain`: domain name to grab IP address
-pub fn lookup_v4(domain: String) -> net::IpAddr {
-    let ips: Vec<std::net::IpAddr> = lookup_host(&domain).unwrap();
+pub fn lookup(domain: String) -> net::IpAddr {
+    let ips: Vec<net::IpAddr> = lookup_host(&domain).unwrap();
     *ips.first().unwrap()
 }
 
