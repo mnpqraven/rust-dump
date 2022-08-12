@@ -1,5 +1,8 @@
 use std::fs;
+use std::process::{Command, Stdio};
 use std::{fs::File, io::Write};
+use std::net::{self, IpAddr};
+use dns_lookup::lookup_host;
 
 use regex::Regex;
 
@@ -9,11 +12,11 @@ use regex::Regex;
 // TODO: hostname should also be checked in the mountpoint
 pub struct NAS {
     _host: String,
-    pub ip: String,
+    pub ip: net::IpAddr,
     _mountpoint: File,
 }
 impl NAS {
-    pub fn new(_host: String, ip: String, _mountpoint: File) -> Self {
+    pub fn new(_host: String, ip: net::IpAddr, _mountpoint: File) -> Self {
         Self {
             _host,
             ip,
@@ -28,14 +31,17 @@ static NAME_RE: &'static str = r"^(.*)/([a-zA-Z-]*.mount)$";
 
 // INFO: should be passed
 pub fn check_ip(nas: &NAS) -> Result<bool, &str> {
-    let re = Regex::new(IP_RE)
-        .unwrap();
-    match re.is_match(&nas.ip) {
+    let re = Regex::new(IP_RE) .unwrap();
+    match re.is_match(&nas.ip.to_string()) {
         true => Ok(true),
         _ => Err("invalid ip addr"),
     }
 }
-pub fn what_replace(mountpoint: String, new_ip: String) -> String {
+/// replaces the mountpoint file, changing the ip address in the what field
+/// Returns String of modified mountpoint file
+/// * `mountpoint`: path of the mountpoint file
+/// * `new_ip`: ip to replace
+pub fn what_replace(mountpoint: String, new_ip: IpAddr) -> String {
     let content = String::from(fs::read_to_string(mountpoint).unwrap());
     let mut result = String::new();
 
@@ -43,7 +49,7 @@ pub fn what_replace(mountpoint: String, new_ip: String) -> String {
     for line in content.lines() {
         if what_re.is_match(line) {
             let caps = what_re.captures(line).unwrap();
-            result.push_str(&line.clone().replace(caps.get(2).unwrap().as_str(), &new_ip));
+            result.push_str(&line.clone().replace(caps.get(2).unwrap().as_str(), &new_ip.to_string()));
         } else {
             result.push_str(line);
         }
@@ -51,6 +57,7 @@ pub fn what_replace(mountpoint: String, new_ip: String) -> String {
     }
     result
 }
+
 pub fn file_inject(replace_with: String) -> Result<(), &'static str> {
     let mut file =
         File::create("/tmp/media-nasremote-music.mount").expect("can't create a new file");
@@ -83,6 +90,18 @@ impl MOUNT {
         }
     }
 }
+/// Copy the mountpoint file generated in /tmp to systemd dir
+pub fn copy_to_systemd() {
+    std::io::stdout().flush().unwrap();
+    // NOTE: copy from tmp to systemd dir
+    let _child = Command::new("sudo")
+        .arg("cp")
+        .arg("/tmp/media-nasremote-music.mount")
+        .arg("/etc/systemd/system")
+        .stdin(Stdio::inherit())
+        .output() // NOTE: importand for catching stdin
+        .expect("failed to run copy command");
+}
 // TODO: implement multiple args/file's existence, for now just media-nasremote-music.mount
 fn _lookup_filename(path: String) -> Result<(), &'static str> {
     match fs::read_dir(path) {
@@ -90,24 +109,13 @@ fn _lookup_filename(path: String) -> Result<(), &'static str> {
         Err(_) => todo!(),
     }
 }
-#[test]
-fn regex() {
-    let mountpoint = "/etc/systemd/system/media-nasremote-music.mount";
-    let name_regex = Regex::new(r"^(.*)/([a-zA-Z-]*.mount)$").unwrap();
-    let captures = name_regex.captures(mountpoint).unwrap();
-    assert_eq!(
-        captures.get(1).map_or("", |m| m.as_str()),
-        "/etc/systemd/system"
-    );
-    assert_eq!(
-        captures.get(2).map_or("", |m| m.as_str()),
-        "media-nasremote-music.mount"
-    );
-}
 
-// TODO: implement host's ip autolookup, for now just pass the new IP as args
-fn _lookup(_ip: String) -> String {
-    unimplemented!();
+/// get the domain's public IPv4 address
+///
+/// * `domain`: domain name to grab IP address
+pub fn lookup_v4(domain: String) -> net::IpAddr {
+    let ips: Vec<std::net::IpAddr> = lookup_host(&domain).unwrap();
+    *ips.first().unwrap()
 }
 
 #[cfg(test)]
@@ -121,7 +129,7 @@ mod tests {
         for ip in good_ips {
             let nas = NAS::new(
                 "random host".to_string(),
-                ip.to_string(),
+                ip.parse().unwrap(),
                 File::open(path).expect("can't open file"),
             );
             assert_eq!(check_ip(&nas).unwrap(), true);
@@ -141,38 +149,34 @@ mod tests {
         for ip in bad_ips {
             let nas = NAS::new(
                 "random host".to_string(),
-                ip.to_string(),
+                ip.parse().unwrap(),
                 File::open(path).expect("can't open file"),
             );
             assert_eq!(check_ip(&nas).unwrap(), false);
         }
     }
-    // TODO: refactor to unit test
+
     #[test]
-    fn file_ip_replace() {
+    fn regex() {
         let mountpoint = "/etc/systemd/system/media-nasremote-music.mount";
-        let content = String::from(fs::read_to_string(mountpoint).unwrap());
-        let mut left_find = String::new();
+        let name_regex = Regex::new(NAME_RE).unwrap();
+        let captures = name_regex.captures(mountpoint).unwrap();
+        assert_eq!(
+            captures.get(1).map_or("", |m| m.as_str()),
+            "/etc/systemd/system"
+            );
+        assert_eq!(
+            captures.get(2).map_or("", |m| m.as_str()),
+            "media-nasremote-music.mount"
+            );
+    }
 
-        // NOTE: capture group 2 is the ip, cap gr 1 is What=//
-        let fs_regex = Regex::new(r"(What\s*=\s*//)((\b25[0-5]|\b2[0-4][0-9]|\b[01]?[0-9][0-9]?)(\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)){3})").unwrap();
-        for line in content.lines() {
-            if fs_regex.is_match(line) {
-                println!("found What line {}", line);
-
-                left_find = line.clone().to_string();
-
-                let caps = fs_regex.captures(line).unwrap();
-                assert_eq!(caps.get(2).unwrap().as_str(), "42.115.6.173");
-                let new_ip = "11.11.11.11";
-                let result = line.replace(caps.get(2).unwrap().as_str(), new_ip);
-                assert_eq!(result, "What=//11.11.11.11/music");
-                println!("new replaced output: {}", result);
-                break;
-            }
-        }
-
-        let right_find = "What=//42.115.6.173/music";
-        assert_eq!(left_find, right_find);
+    #[test]
+    fn look() {
+        let hostname = String::from("othiremote.synology.me");
+        let ips: Vec<net::IpAddr> = lookup_host(&hostname).unwrap();
+        assert!(ips.contains(&"118.71.111.229".parse().unwrap()));
+        // ips[0] and [1] for IpV4 and IpV6
+        println!("{:?}", ips[0]);
     }
 }
