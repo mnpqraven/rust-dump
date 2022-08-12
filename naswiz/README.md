@@ -1,7 +1,7 @@
 ```
-naswiz 0.1.0
-othi
-nas mountpoint update wizard
+naswiz
+Synology NAS mountpoint update wizard
+This program fetches your public url domain and updates the mountpoint in systemd
 
 USAGE:
     naswiz [ip]
@@ -10,6 +10,5 @@ ARGS:
     <ip>    nas' public ip address
 
 OPTIONS:
-    -h, --help       Print help information
-    -V, --version    Print version information
+    -h, --help    Print help information
 ```
