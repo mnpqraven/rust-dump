@@ -1,4 +1,4 @@
-use lookup::lookup;
+use lookup::lookupv4;
 use clap::Parser;
 
 
@@ -13,7 +13,7 @@ struct Args {
 
 fn main() {
     let args = Args::parse();
-    for line in lookup(&args.host) {
+    for line in lookupv4(&args.host) {
         println!("{}", line);
     }
 }
