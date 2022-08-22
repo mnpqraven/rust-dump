@@ -1,12 +1,9 @@
 use clap::Parser;
-use dns_lookup::LookupError;
-use naswiz::check_ip;
 use naswiz::gen_new_file;
 use naswiz::lookup;
 use naswiz::NAS;
-use dns_lookup::lookup_host;
 use std::fs::File;
-use std::net::AddrParseError;
+use std::net::Ipv4Addr;
 
 #[derive(Parser)]
 #[clap(author, version, about)]
@@ -30,34 +27,17 @@ fn main() -> Result<(), &'static str> {
     // NOTE: RUNTIME
     // INFO: currently cr -m mount ip or cr -m mount --host host
     // TODO: refactor error handling, unify 2 arguments
-    let rando = String::from("othiremote.synology.me");
-    let mut ip: Result<std::net::IpAddr, AddrParseError> = rando.parse();
-    match ip {
-        Ok(_) => ip = args.ip.parse().expect("not a valid ip address"),
-        Err(x) => {
-                ip = lookup(
-                    x
-                        .as_ref()
-                        .expect("can't parse the host name")
-                        .to_string(),
-                )
-        },
-    }
+    // let rando = String::from("arstoiarestothiremote.synology.me");
+    let ip: Result<Ipv4Addr, std::net::AddrParseError> = lookup(args.ip);
 
     let nas = NAS::new(
-        ip,
+        ip.unwrap(),
         File::open(&mountpoint).expect(
             "can't find said file\n
             Does the file exist ?/Do you have permission to view the file ?",
         ),
     );
-    match check_ip(&nas) {
-        Ok(_) => {
-            println!("{} is a valid ip address, continuing ...", &nas.ip);
-            gen_new_file(args.mount.to_string(), nas.ip).unwrap();
-            // should eventually pass paths and file name as args
-        }
-        Err(_) => panic!("not a valid ip address"),
-    }
+    println!("{} is a valid ip address, continuing ...", &nas.ip);
+    gen_new_file(args.mount.to_string(), nas.ip).unwrap();
     Ok(())
 }

@@ -1,38 +1,30 @@
 use dns_lookup::lookup_host;
 use std::fs;
-use std::net::{self, IpAddr};
+use std::net::{self, IpAddr, Ipv4Addr, Ipv6Addr};
 use std::process::{Command, Stdio};
 use std::{fs::File, io::Write};
 
 use regex::Regex;
 
 pub struct NAS {
-    pub ip: net::IpAddr,
+    pub ip: net::Ipv4Addr,
     _mountpoint: File,
 }
 impl NAS {
-    pub fn new(ip: net::IpAddr, _mountpoint: File) -> Self {
+    pub fn new(ip: net::Ipv4Addr, _mountpoint: File) -> Self {
         Self { ip, _mountpoint }
     }
 }
 
-static IP_RE: &'static str = r"^((25[0-5]|2[0-4][0-9]|1[0-9][0-9]|[1-9]?[0-9])\.){3}(25[0-5]|2[0-4][0-9]|1[0-9][0-9]|[1-9]?[0-9])$";
+// static IP_RE: &'static str = r"^((25[0-5]|2[0-4][0-9]|1[0-9][0-9]|[1-9]?[0-9])\.){3}(25[0-5]|2[0-4][0-9]|1[0-9][0-9]|[1-9]?[0-9])$";
 static WHAT_RE: &'static str = r"(What\s*=\s*//)(((25[0-5]|2[0-4][0-9]|1[0-9][0-9]|[1-9]?[0-9])\.){3}(25[0-5]|2[0-4][0-9]|1[0-9][0-9]|[1-9]?[0-9]))";
 static NAME_RE: &'static str = r"^(.*)/([a-zA-Z-]*.mount)$";
 
-// INFO: should be passed
-pub fn check_ip(nas: &NAS) -> Result<bool, &str> {
-    let re = Regex::new(IP_RE).unwrap();
-    match re.is_match(&nas.ip.to_string()) {
-        true => Ok(true),
-        _ => Err("invalid ip addr"),
-    }
-}
 /// replaces the mountpoint file, changing the ip address in the what field
 ///
 /// * `mountpoint`: path of the mountpoint file
 /// * `new_ip`: ip to replace
-pub fn gen_new_file(mount: String, new_ip: IpAddr) -> Result<(), &'static str> {
+pub fn gen_new_file(mount: String, new_ip: Ipv4Addr) -> Result<(), &'static str> {
     // mountpoint = format!(/etc/systemd/system/{}.mount, mount)
     let mountpoint = format!("/etc/systemd/system/{}.mount", mount);
     let tmp_mountpoint = format!("/tmp/{}.mount", mount);
@@ -97,14 +89,14 @@ fn _lookup_filename(path: String) -> Result<(), &'static str> {
 fn copy_to_systemd(mount: String) {
     std::io::stdout().flush().unwrap();
     // NOTE: copy from tmp to systemd dir
-    let _child = Command::new("sudo")
+    let child = Command::new("sudo")
         .arg("cp")
         .arg(format!("/tmp/{}.mount", mount))
         .arg("/etc/systemd/system")
         .stdin(Stdio::inherit())
         .output() // NOTE: importand for catching stdin
         .expect("failed to run copy command");
-    match _child.status.success() {
+    match child.status.success() {
         true => println!("copy success"),
         _ => panic!("copy failed")
     }
@@ -113,46 +105,28 @@ fn copy_to_systemd(mount: String) {
 /// get the domain's public IPv4 address
 ///
 /// * `domain`: domain name to grab IP address
-pub fn lookup(domain: String) -> net::IpAddr {
-    let ips: Vec<net::IpAddr> = lookup_host(&domain).unwrap();
-    *ips.first().unwrap()
+pub fn lookup(domain: String) -> Result<Ipv4Addr, std::net::AddrParseError> {
+// Result<net::Ipv4Addr, std::io::Error> {
+    let ips: Result<Vec<net::IpAddr>,std::io::Error> = lookup_host(&domain);
+    match ips {
+        Ok(_) => {
+            let mut ip4s: Vec<Ipv4Addr> = Vec::new();
+            let mut ip6s: Vec<Ipv6Addr> = Vec::new(); // unused for now
+            for ip in ips.unwrap() {
+                match ip {
+                    IpAddr::V4(ipv4) => ip4s.push(ipv4),
+                    IpAddr::V6(ipv6) => ip6s.push(ipv6)
+                }
+            }
+            Ok(ip4s.first().cloned().unwrap())
+        },
+        Err(error) =>  panic!("{}", error)
+    }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-
-    #[test]
-    fn check_ip_pass() {
-        let good_ips = ["182.221.23.1", "192.168.1.1"];
-        let path = "/etc/systemd/system/media-nasremote-music.mount";
-        for ip in good_ips {
-            let nas = NAS::new(
-                ip.parse().unwrap(),
-                File::open(path).expect("can't open file"),
-            );
-            assert_eq!(check_ip(&nas).unwrap(), true);
-        }
-    }
-    #[test]
-    #[should_panic(expected = "invalid ip addr")]
-    fn check_ip_fail() {
-        let bad_ips = [
-            "278.12.23.2",
-            "123.-1.23.2",
-            "278.-1.23.2",
-            "21.23.231",
-            "121.222.1.2",
-        ];
-        let path = "/etc/systemd/system/media-nasremote-music.mount";
-        for ip in bad_ips {
-            let nas = NAS::new(
-                ip.parse().unwrap(),
-                File::open(path).expect("can't open file"),
-            );
-            assert_eq!(check_ip(&nas).unwrap(), false);
-        }
-    }
 
     #[test]
     fn regex() {
