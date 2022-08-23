@@ -3,7 +3,6 @@ use naswiz::gen_new_file;
 use naswiz::lookup;
 use naswiz::NAS;
 use std::fs::File;
-use std::net::Ipv4Addr;
 
 #[derive(Parser)]
 #[clap(author, version, about)]
@@ -25,10 +24,7 @@ fn main() -> Result<(), &'static str> {
     println!("{}", mountpoint);
 
     // NOTE: RUNTIME
-    // INFO: currently cr -m mount ip or cr -m mount --host host
-    // TODO: refactor error handling, unify 2 arguments
-    // let rando = String::from("arstoiarestothiremote.synology.me");
-    let ip: Result<Ipv4Addr, std::net::AddrParseError> = lookup(args.ip);
+    let ip = lookup(args.ip);
 
     let nas = NAS::new(
         ip.unwrap(),

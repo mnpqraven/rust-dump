@@ -16,8 +16,8 @@ impl NAS {
     }
 }
 
-// static IP_RE: &'static str = r"^((25[0-5]|2[0-4][0-9]|1[0-9][0-9]|[1-9]?[0-9])\.){3}(25[0-5]|2[0-4][0-9]|1[0-9][0-9]|[1-9]?[0-9])$";
 static WHAT_RE: &'static str = r"(What\s*=\s*//)(((25[0-5]|2[0-4][0-9]|1[0-9][0-9]|[1-9]?[0-9])\.){3}(25[0-5]|2[0-4][0-9]|1[0-9][0-9]|[1-9]?[0-9]))";
+#[allow(dead_code)]
 static NAME_RE: &'static str = r"^(.*)/([a-zA-Z-]*.mount)$";
 
 /// replaces the mountpoint file, changing the ip address in the what field
@@ -25,7 +25,6 @@ static NAME_RE: &'static str = r"^(.*)/([a-zA-Z-]*.mount)$";
 /// * `mountpoint`: path of the mountpoint file
 /// * `new_ip`: ip to replace
 pub fn gen_new_file(mount: String, new_ip: Ipv4Addr) -> Result<(), &'static str> {
-    // mountpoint = format!(/etc/systemd/system/{}.mount, mount)
     let mountpoint = format!("/etc/systemd/system/{}.mount", mount);
     let tmp_mountpoint = format!("/tmp/{}.mount", mount);
     let content = String::from(fs::read_to_string(&mountpoint).unwrap());
@@ -54,37 +53,6 @@ pub fn gen_new_file(mount: String, new_ip: Ipv4Addr) -> Result<(), &'static str>
     Ok(())
 }
 
-#[allow(dead_code)]
-struct MOUNT {
-    path: String,
-    filename: String,
-}
-#[allow(dead_code)]
-impl MOUNT {
-    pub fn new(fullpath: String) -> Self {
-        // INFO: fullpath example: "/etc/systemd/system/media-nasremote-music.mount"
-        // extra `-` charcter for systemd's dir traversing naming scheme
-        // cap group 0: fullpath
-        // cap group 1: dir (/etc/systemd/system)
-        // cap group 2: filename (media-nasremote-music.mount)
-        let name_regex = Regex::new(NAME_RE).unwrap();
-        let captures = name_regex.captures(&fullpath).unwrap();
-        let path = captures.get(1).map_or("", |m| m.as_str());
-        let filename = captures.get(2).map_or("", |m| m.as_str());
-        Self {
-            path: path.to_owned(),
-            filename: filename.to_owned(),
-        }
-    }
-}
-
-// TODO: implement multiple args/file's existence, for now just media-nasremote-music.mount
-fn _lookup_filename(path: String) -> Result<(), &'static str> {
-    match fs::read_dir(path) {
-        Ok(_) => todo!(),
-        Err(_) => todo!(),
-    }
-}
 /// Copy the mountpoint file generated in /tmp to systemd dir
 fn copy_to_systemd(mount: String) {
     std::io::stdout().flush().unwrap();
