@@ -1,10 +1,7 @@
 pub mod ip_process;
 use clap::{Parser, ValueEnum};
-use rpassword::read_password;
-use std::{
-    io::{self, stdout, Read, Write, BufRead},
-    net::Ipv4Addr,
-};
+use rsync_tool::Nas;
+use std::io;
 
 #[derive(Parser)]
 #[clap(author, version, about)]
@@ -48,15 +45,10 @@ enum Mode {
 
 #[derive(Clone, Copy, ValueEnum)]
 enum Dir {
-    // /var/services/homes/othi = $HOME = /volume1/homes/othi
-    Db1, // /volume1/db1
-    // NOTE: volume1 changable in future ?
-    NetBackup, // /volume1/NetBackup/othi
-    // /var/services/NetBackup/othi
-    Voice, // /var/services/homes/othi/music/voice
-    // /volume1/homes/othi/music/voice
-    Music, // /var/services/music
-           // /volume1/music
+    Db1,
+    NetBackup,
+    Voice,
+    Music,
 }
 
 // TODO: don't hardcode hostname
@@ -64,18 +56,18 @@ enum Dir {
 // TODO: exclude bin/node_modules etc. folders
 fn main() -> Result<(), io::Error> {
     // let _args: Args = Args::parse();
-    let _rando: Ipv4Addr = "127.0.0.1".parse().unwrap();
 
     // NOTE: io and user interaction
-    println!("enter pw");
     // let mut buffer = String::new();
     // let stdin = io::stdin();
     // match stdin.read_line(&mut buffer) {
     //     Ok(_) => print!("{}", buffer),
     //     Err(error) => eprint!("{error}")
     // }
-    std::io::stdout().flush().unwrap();
-    let password = read_password().unwrap();
-    println!("The password is: '{}'", password);
+    // std::io::stdout().flush().unwrap();
+    // let password = read_password().unwrap();
+    // println!("The password is: '{}'", password);
+
+    Nas::connect("192.168.1.14", 6661);
     Ok(())
 }
