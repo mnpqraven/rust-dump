@@ -1,34 +1,34 @@
 pub mod ip_process;
 use clap::{Parser, ValueEnum};
-use rsync_tool::Nas;
-use std::io;
+use std::{io, process::Command};
 
 #[derive(Parser)]
 #[clap(author, version, about)]
 struct Args {
     /// local file/folder path to copy
-    #[clap(value_parser)]
+    #[clap(long, short, value_parser)]
     target: String,
+
+    /// nas address
+    #[clap(long, short, value_parser)]
+    host: String,
 
     /// target folder in nas
     #[clap(arg_enum, value_parser)]
     mode: Mode,
-
-    #[clap(value_parser)]
-    host: String,
 
     #[clap(short, value_parser, default_value_t = 22)]
     port: u16,
 
     /// sending data to remote or receiving data from remote
     #[clap(arg_enum, value_parser)]
-    send_or_receive: Flow,
+    receive: Option<bool>,
 
     /// dry run, rsync's -n flag
-    preview: bool,
+    preview: Option<bool>,
 
     /// with --delete flag or not
-    sync: bool,
+    sync: Option<bool>,
 }
 
 #[derive(Clone, Copy, ValueEnum)]
@@ -55,19 +55,21 @@ enum Dir {
 // TODO: progress bar
 // TODO: exclude bin/node_modules etc. folders
 fn main() -> Result<(), io::Error> {
-    // let _args: Args = Args::parse();
+    let args: Args = Args::parse();
 
-    // NOTE: io and user interaction
-    // let mut buffer = String::new();
-    // let stdin = io::stdin();
-    // match stdin.read_line(&mut buffer) {
-    //     Ok(_) => print!("{}", buffer),
-    //     Err(error) => eprint!("{error}")
-    // }
-    // std::io::stdout().flush().unwrap();
-    // let password = read_password().unwrap();
-    // println!("The password is: '{}'", password);
-
-    Nas::connect("192.168.1.14", 6661);
+    let mut preview = String::new();
+    match args.preview {
+        Some(_) => preview.push_str("-n"),
+        _ => (),
+    };
+    match args.sync {
+        Some(_) => {}
+        None => {}
+    };
+    let me = Command::new("rsync")
+        .args(["-e", "ssh", "-p", &args.port.to_string() ])
+        .arg(preview)
+        .output()
+        .expect("failed to run rsync");
     Ok(())
 }
