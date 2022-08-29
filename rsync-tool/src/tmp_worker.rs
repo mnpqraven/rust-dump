@@ -11,17 +11,18 @@ pub mod tmp_worker {
 
     /// Creates the exclude file in /tmp, containing folders to exclude
     /// (binanies in repos, etc.)
-    fn create_tmp_exclude() -> Result<(), io::Error> {
+    /// returns path of the exclude file
+    pub fn create_tmp_exclude() -> Result<&'static str, io::Error> {
         let mut file = File::create(&TMP_EXCLUDE).expect("can't create file, check perms");
         for line in DEFAULT_EXCLUDES {
             file.write(line.as_bytes()).unwrap();
             file.write(b"\n").unwrap();
         }
-        Ok(())
+        Ok(TMP_EXCLUDE)
     }
 
     /// Deletes the exclude file in /tmp
-    fn clear_tmp_exclude() -> Result<(), io::Error> {
+    pub fn clear_tmp_exclude() -> Result<(), io::Error> {
         fs::remove_file(&TMP_EXCLUDE).expect("can't delete file, check perms");
         Ok(())
     }

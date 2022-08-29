@@ -11,7 +11,7 @@ use ip_process::ip_process::find_ip;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct User {
-    name: String,
+    pub name: String,
 }
 
 #[allow(dead_code)]
@@ -105,7 +105,7 @@ impl Nas {
 }
 
 impl User {
-    fn new(name: &str) -> Self {
+    pub fn new(name: &str) -> Self {
         User {
             name: name.to_string(),
         }
