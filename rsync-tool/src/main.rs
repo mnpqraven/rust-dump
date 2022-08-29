@@ -1,9 +1,14 @@
+use rsync_tool::builder::build_target_arg;
+use rsync_tool::builder::HomeType;
+use strum::IntoEnumIterator;
 pub mod ip_process;
 pub mod tmp_worker;
 use clap::Parser;
 use clap::ValueEnum;
+use rsync_tool::builder::Dir;
 use rsync_tool::ip_process::find_ip;
 use rsync_tool::tmp_worker::*;
+use rsync_tool::Nas;
 use rsync_tool::User;
 use std::io;
 use std::io::BufRead;
@@ -31,6 +36,8 @@ struct Args {
     // /// sending data to remote or receiving data from remote
     // #[clap(arg_enum, value_parser)]
     // receive: Option<bool>,
+    #[clap(long, default_value_t = false)]
+    use_volume: bool,
 }
 
 struct Interact {
@@ -52,17 +59,10 @@ enum Mode {
     Remote,
 }
 
-#[derive(Clone, Copy, ValueEnum)]
-enum Dir {
-    Db1,
-    NetBackup,
-    Voice,
-    Music,
-}
-
 // TODO: don't hardcode hostname
 // TODO: NAS in lib integration
 // TODO: dir enum
+// NOTE: do we need Vec<User> validation with human input ?
 fn main() -> Result<(), io::Error> {
     let args: Args = Args::parse();
     let mut preview_sync = vec![];
@@ -72,13 +72,13 @@ fn main() -> Result<(), io::Error> {
     };
 
     // TODO: data scraping
-    let (ip, host) = find_ip(&args.host).unwrap();
+    let (ip, hostname) = find_ip(&args.host).unwrap();
 
     // INFO: runtime
     println!("TARGET: {}", &args.target);
     println!("IP:     {}", &ip);
     println!("HOST1:  {}", &args.host);
-    println!("HOST2:  {}", &host.unwrap());
+    println!("HOST2:  {}", &hostname.as_ref().unwrap());
     println!("PORT:   {}", &args.port);
     println!("preview {}", &interact.preview);
     println!("sync    {}", &interact.sync);
@@ -116,15 +116,34 @@ fn main() -> Result<(), io::Error> {
         &"n" => {}
         _ => println!("invalid input"),
     }
+    println!("where do you want to backup");
+    for dir in Dir::iter() {
+        println!("{}: {:?}", dir as u8, dir);
+    }
+    stdin.read_line(&mut line)?;
+    // let dir_index_selected: u8 = line.trim().parse().unwrap();
+    let dir_index = line.trim().lines().last().unwrap().parse::<u8>().unwrap();
 
     let tmp = create_tmp_exclude()?;
-
     let ssh = format!("ssh -p {}", &args.port);
-    // TODO:hardcode fix
-    let arg_to = format!(
-        "{}@{}:/volume1/NetBackup/{}",
-        &user_as.name, &ip, &user_to.name
+    // NOTE: hardcode backup/debug
+    // let arg_to = format!(
+    //     "{}@{}:/volume1/NetBackup/{}",
+    //     &user_as.name, &ip, &user_to.name
+    // );
+    let use_volume = match args.use_volume {
+        true => HomeType::Volume,
+        _ => HomeType::VarServices,
+    };
+    let yuge = build_target_arg(
+        user_as,
+        Nas::connect(&args.host.to_string(), args.port),
+        Dir::try_from(dir_index).unwrap(),
+        use_volume,
+        user_to,
     );
+    // NOTE: Debug
+    // assert_eq!(yuge,arg_to);
     let mut output = Command::new("rsync")
         .arg("-avzx")
         .arg("-e")
@@ -133,9 +152,9 @@ fn main() -> Result<(), io::Error> {
         .args(preview_sync)
         .arg(format!("--exclude-from={}", tmp))
         .arg(&args.target)
-        .arg(arg_to)
+        .arg(yuge)
         .stdout(Stdio::piped())
-        .stderr(Stdio::piped())
+        // .stderr(Stdio::piped())
         .spawn()
         .expect("can't parse");
     let mut child_out = BufReader::new(output.stdout.as_mut().unwrap());
@@ -148,7 +167,7 @@ fn main() -> Result<(), io::Error> {
                 println!("{}", line.lines().last().unwrap());
                 continue;
             }
-            Err(err) => panic!("read_line error: {}", err),
+            Err(err) => panic!("{}", err),
         }
     }
 

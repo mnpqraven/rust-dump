@@ -8,3 +8,5 @@ edition = "2021"
 [dependencies]
 clap = { version = "3.2.17", features = ["derive"] }
 dns-lookup = "1.0.8"
+strum = { version = "0.24.1", features = ["strum_macros"]}
+strum_macros = "0.24.3"

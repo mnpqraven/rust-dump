@@ -51,7 +51,7 @@ impl Nas {
         match Path::new(&TMP_USERS).try_exists() {
             // read cache for list
             Ok(true) => {
-                println!("found cache file, reading...");
+                println!("found cache file of user list, reading...");
                 let mut users = Vec::new();
                 let file = fs::read_to_string(&TMP_USERS).expect("can't read file, check perms");
                 for line in file.lines() {
