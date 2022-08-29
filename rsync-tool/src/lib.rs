@@ -1,6 +1,7 @@
 pub mod builder;
 pub mod ip_process;
 pub mod tmp_worker;
+pub mod user_input;
 use std::fs::{self, File};
 use std::io::{self, Write};
 use std::net::Ipv4Addr;
