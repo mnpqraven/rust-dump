@@ -2,10 +2,9 @@ pub mod ip_process;
 pub mod tmp_worker;
 use clap::Parser;
 use clap::ValueEnum;
-use rsync_tool::ip_process::ip_process::find_ip;
+use rsync_tool::ip_process::find_ip;
+use rsync_tool::tmp_worker::*;
 use rsync_tool::User;
-use rsync_tool::tmp_worker::tmp_worker::clear_tmp_exclude;
-use rsync_tool::tmp_worker::tmp_worker::create_tmp_exclude;
 use std::io;
 use std::io::BufRead;
 use std::io::BufReader;
@@ -62,11 +61,11 @@ enum Dir {
 }
 
 // TODO: don't hardcode hostname
-// TODO: progress bar
-// TODO: exclude bin/node_modules etc. folders
+// TODO: NAS in lib integration
+// TODO: dir enum
 fn main() -> Result<(), io::Error> {
     let args: Args = Args::parse();
-    let mut preview_sync = vec![ ];
+    let mut preview_sync = vec![];
     let interact = Interact {
         preview: true,
         sync: false,
@@ -122,7 +121,10 @@ fn main() -> Result<(), io::Error> {
 
     let ssh = format!("ssh -p {}", &args.port);
     // TODO:hardcode fix
-    let arg_to = format!("{}@{}:/volume1/NetBackup/{}", &user_as.name, &ip, &user_to.name);
+    let arg_to = format!(
+        "{}@{}:/volume1/NetBackup/{}",
+        &user_as.name, &ip, &user_to.name
+    );
     let mut output = Command::new("rsync")
         .arg("-avzx")
         .arg("-e")

@@ -7,7 +7,7 @@ use std::net::Ipv4Addr;
 use std::path::Path;
 use std::process::Command;
 
-use ip_process::ip_process::find_ip;
+use ip_process::find_ip;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct User {
@@ -115,7 +115,7 @@ impl User {
 #[cfg(test)]
 mod tests {
 
-    use crate::ip_process::ip_process::find_ip;
+    use crate::ip_process::find_ip;
     use crate::{Nas, User};
 
     #[test]
