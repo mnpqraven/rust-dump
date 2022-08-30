@@ -10,7 +10,7 @@ pub enum HomeType {
 }
 // /var/services/homes/othi = $HOME = /volume1/homes/othi
 // NOTE: volume1 changable in future ?
-#[derive(Debug, EnumIter)]
+#[derive(Debug, EnumIter, PartialEq)]
 pub enum Dir {
     // @/db1
     Db1 = 1,
@@ -38,6 +38,22 @@ impl TryFrom<u8> for Dir {
     }
 }
 
+/// generates remote path including ssh address and file path
+pub fn build_target_arg(
+    user_ssh: User,
+    nas: Nas,
+    dir: &Dir,
+    home_type: HomeType,
+    user_client: User,
+    rev: bool,
+) -> String {
+    format!(
+        "{}:{}",
+        build_ssh(user_ssh, nas),
+        build_path(dir, home_type, user_client, rev)
+    )
+}
+
 fn build_ssh(user: User, nas: Nas) -> String {
     format!("{}@{}", user.name, nas.ip)
 }
@@ -45,15 +61,18 @@ fn build_ssh(user: User, nas: Nas) -> String {
 /// builds path from args
 /// e.g /volume1/NetBackup/othi
 /// or /var/services/NetBackup/othi
-fn build_path(dir: Dir, home_type: HomeType, user: User) -> String {
+fn build_path(dir: &Dir, home_type: HomeType, user: User, rev: bool) -> String {
     let voicefmt = format!("homes/{}/music/voice", user.name);
-    let customfmt: String = build_custom_fmt();
+    let customfmt: String;
     let folder: &str = match dir {
         Dir::Db1 => "db1",
         Dir::NetBackup => "NetBackup",
         Dir::Voice => &voicefmt,
         Dir::Music => "music",
-        Dir::Custom => &customfmt,
+        Dir::Custom => {
+            customfmt = build_custom_fmt(rev);
+            &customfmt
+        }
     };
     let home = match home_type {
         HomeType::Volume1 => "/volume1",
@@ -64,19 +83,4 @@ fn build_path(dir: Dir, home_type: HomeType, user: User) -> String {
         Dir::Custom => format!("{}", folder),
         _ => format!("{}/{}/{}", home, folder, user.name),
     }
-}
-
-/// generates remote path including ssh address and file path
-pub fn build_target_arg(
-    user_ssh: User,
-    nas: Nas,
-    dir: Dir,
-    home_type: HomeType,
-    user_client: User,
-) -> String {
-    format!(
-        "{}:{}",
-        build_ssh(user_ssh, nas),
-        build_path(dir, home_type, user_client)
-    )
 }
