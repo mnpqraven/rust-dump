@@ -1,4 +1,6 @@
-use std::{net::Ipv4Addr, io};
+pub mod worker;
+
+use std::{fmt::Display, io, net::Ipv4Addr};
 
 /// TODO: serde
 struct Nas {
@@ -6,12 +8,14 @@ struct Nas {
     domain: Option<Ipv4Addr>,
     users: Vec<User>,
     // INFO: should ports be users' children or nas' children?
-    ports: Vec<Port>
+    // try nas' children first
+    ports: Vec<Port>,
 }
 
-struct Port {
-    port: u16
+pub struct Port {
+    port: u16,
 }
+
 // TODO: need role??
 // probably
 struct User {
@@ -19,7 +23,8 @@ struct User {
     role: ROLE,
 }
 enum ROLE {
-    Admin, Guest
+    Admin,
+    Guest,
 }
 /// find userlist file in /tmp
 fn _find_user_list() -> Vec<User> {
@@ -29,8 +34,4 @@ fn _find_user_list() -> Vec<User> {
 fn _create_user_list() -> Result<(), io::Error> {
     unimplemented!();
     Ok(())
-}
-
-fn json_work() {
-    unimplemented!("transform compiled data into JSON")
 }
