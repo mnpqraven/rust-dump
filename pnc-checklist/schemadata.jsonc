@@ -1,0 +1,43 @@
+// TODO: finalize basic data struct
+[
+    {
+        "name": "Croque",
+        "type": "Guard",
+        // UnitCurrent struct + UnitGoal struct
+        "current": {
+            // AlgoSet struct
+            "algo": {
+                // AlgoPiece struct
+                // TODO: choose either slot value as array or array of entities
+                "offense": [
+                    { "name": "BLANK", "stat": "BLANK", "slot": [1,2] }
+                ],
+                "stability": [
+                    { "name": "Overflow", "stat": "Health", "slot": [1,3] },
+                    { "name": "Overflow", "stat": "HealthPercent", "slot": [2] }
+                ],
+                "special": [
+                    { "name": "BLANK", "stat": "BLANK", "slot": [1,2] }
+                ]
+            },
+            "skill": {
+                "passive": 8,
+                "auto": 8
+            }
+        },
+        // defaults to slv10 for calculation
+        "goal": {
+            "algo": {
+                "offense": [
+                    { "name": "Progression", "stat": "HashratePercent", "slot": [1,2] }
+                ],
+                "stability": [
+                    { "name": "Overflow", "stat": "HealthPercent", "slot": [1,2,3] }
+                ],
+                "special": [
+                    { "name": "Stratagem", "stat": "Haste", "slot": [1,2] }
+                ]
+            }
+        }
+    }
+]

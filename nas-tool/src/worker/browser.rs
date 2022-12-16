@@ -3,7 +3,7 @@ enum Browser {
     Chrome,
 }
 
-fn build(selection: Browser, link: &str) -> Result<String, &'static str> {
+fn browser_open(selection: Browser, link: &str) -> Result<String, &'static str> {
     let mut br = String::new();
     match selection {
         Browser::Firefox => br.push_str("firefox"),
@@ -23,13 +23,13 @@ mod tests {
 
     #[test]
     fn right_link() {
-        let res = build(Browser::Firefox, "192.168.1.14:5000").unwrap();
+        let res = browser_open(Browser::Firefox, "192.168.1.14:5000").unwrap();
         assert_eq!(res, "firefox 192.168.1.14:5000");
     }
 
     #[test]
     #[should_panic]
     fn no_link() {
-        let _res = build(Browser::Firefox, "").unwrap();
+        let _res = browser_open(Browser::Chrome, "").unwrap();
     }
 }
